@@ -342,11 +342,11 @@ bool ts::hls::InputPlugin::start()
             segCount = size_t(- _startSegment);
         }
     }
-
+    tsp->debug(u"Segments count in playlist: %d", {segCount});
     // If the start point is not the first segment, then drop unused initial segments.
     while (_playlist.segmentCount() > segCount) {
         _playlist.popFirstSegment();
-        tsp->debug(u"dropped initial segment, %d remaining segments", {_playlist.segmentCount()});
+        tsp->debug(u"dropped initial segment, %s remaining segments", {_playlist.segmentCount()});
     }
 
     _segmentCount = 0;
@@ -386,6 +386,9 @@ bool ts::hls::InputPlugin::openURL(WebRequest& request)
         tsp->aborting();
 
     // If there is only one or zero remaining segment, try to reload the playlist.
+    tsp->debug(u"Current playlist segments: %s", {_playlist.segmentCount()});
+    tsp->debug(u"Before Reload completed: %s", {completed});
+    tsp->debug(u"Before Reload _playlist.isUpdatable(): %s", {_playlist.isUpdatable()});
     if (!completed && _playlist.segmentCount() < 2 && _playlist.isUpdatable()) {
 
         // Reload the playlist, ignore errors, continue to play next segments.
@@ -396,7 +399,8 @@ bool ts::hls::InputPlugin::openURL(WebRequest& request)
         // can be produced as late as the estimated end time of the previous playlist. So, we retry
         // at regular intervals until we get new segments.
 
-        while (_playlist.segmentCount() == 0 && Time::CurrentUTC() <= _playlist.terminationUTC() && !tsp->aborting()) {
+        while (_playlist.segmentCount() == 0 && !tsp->aborting()) {
+            tsp->debug(u"In while loop %s", {_playlist.segmentCount()});
             // The wait between two retries is half the target duration of a segment, with a minimum of 2 seconds.
             std::this_thread::sleep_for(cn::seconds(std::max<cn::seconds::rep>(2, _playlist.targetDuration() / 2)));
             // This time, we stop on reload error.
@@ -420,7 +424,7 @@ bool ts::hls::InputPlugin::openURL(WebRequest& request)
     _segmentCount++;
 
     // Open the segment.
-    tsp->debug(u"downloading segment %s", {seg.urlString()});
+    tsp->debug(u"Downloading segment %s", {seg.urlString()});
     request.enableCookies(webArgs.cookiesFile);
     return request.open(seg.urlString());
 }
